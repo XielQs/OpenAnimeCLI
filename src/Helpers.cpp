@@ -1,7 +1,11 @@
 #include "lib/inquirer.hpp"
 #include <array>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <random>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 std::string execute(const std::string &cmd)
@@ -23,8 +27,22 @@ std::string execute(const std::string &cmd)
     return result;
 }
 
-int selectPrompt(std::string type,
-                 std::string question,
+std::string randomString(int length)
+{
+    static const char charset[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    static thread_local std::mt19937 rng{std::random_device{}()};
+    static thread_local std::uniform_int_distribution<> dist(0, sizeof(charset) - 2);
+
+    std::string result;
+    result.reserve(length);
+    for (int i = 0; i < length; ++i)
+        result += charset[dist(rng)];
+
+    return result;
+}
+
+int selectPrompt(const std::string type,
+                 const std::string question,
                  const std::vector<std::string> &options,
                  bool use_fzf,
                  alx::Inquirer inquirer)
@@ -32,13 +50,21 @@ int selectPrompt(std::string type,
     std::string selected;
 
     if (use_fzf) {
-        std::string command = "echo -e '";
-        for (const auto &option : options) {
-            command += option + "\n";
+        std::string tmp_file = std::filesystem::temp_directory_path() / randomString(16);
+        std::ofstream file(tmp_file);
+        if (!file) {
+            std::cerr << "Failed to create temporary file." << std::endl;
+            exit(1);
         }
-        command.pop_back();
-        command += "' | fzf --reverse --cycle --prompt='" + question + "'";
+
+        for (const auto &option : options) {
+            file << option << "\n";
+        }
+
+        file.close();
+        std::string command = "fzf --reverse --cycle --prompt='" + question + "' < " + tmp_file;
         selected = execute(command);
+        std::filesystem::remove(tmp_file);
     } else {
         system("clear");
         selected = inquirer.add_question({type, question, options}).ask();
@@ -48,6 +74,9 @@ int selectPrompt(std::string type,
         std::cerr << "No selection made." << std::endl;
         exit(1);
     }
+
+    if (selected.back() == '\n')
+        selected.pop_back();
 
     auto selection = find(options.begin(), options.end(), selected);
     if (selection == options.end()) {
