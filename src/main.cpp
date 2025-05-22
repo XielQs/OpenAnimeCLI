@@ -34,8 +34,7 @@ AnimeSearch selectAnime(std::string anime_name = "")
         results_list.push_back(item.english + (item.isMovie() ? " (film)" : ""));
     }
 
-    int anime_index =
-        selectPrompt("select", "Bir anime secin", results_list, parser.use_fzf, inquirer);
+    int anime_index = selectPrompt("Bir anime secin", results_list, parser.use_fzf, inquirer);
 
     return results[anime_index];
 }
@@ -47,8 +46,7 @@ Fansub selectFansub(const std::vector<Fansub> &fansubs)
         fansub_list.push_back(fansub.name);
     }
 
-    int selected_index =
-        selectPrompt("select", "Bir fansub secin", fansub_list, parser.use_fzf, inquirer);
+    int selected_index = selectPrompt("Bir fansub secin", fansub_list, parser.use_fzf, inquirer);
 
     return fansubs[selected_index];
 }
@@ -110,11 +108,11 @@ void selectEpisode(const Anime &anime, int &season, int &episode)
     }
 }
 
-void playVideo(const SourceFile &source_file,
-               const Anime &anime,
-               const int season,
-               const int episode)
+void playVideo(const SourceFile &source_file, const Anime &anime, const long union_)
 {
+    int episode = (union_ >> (sizeof(int) * 8)) & 0xFFFFFFFF;
+    int season = union_ & 0xFFFFFFFF;
+
     if (source_file.file.empty()) {
         std::cout << "Video oynatilamadi" << std::endl;
         exit(1);
@@ -129,12 +127,67 @@ void playVideo(const SourceFile &source_file,
     title += " - " + std::to_string(source_file.resolution) + "p";
 
     std::string args = "--force-media-title='" + title + "' '" + source_file.file + "'";
-    std::string command = "mpv " + args + " 2>&1 &";
+    std::string command = "mpv " + args + " > /dev/null 2>&1 &";
     // filesystem::remove(temp_path);
     // " >" + temp_path + " 2>&1 &"
     if (system(command.c_str()) != 0) {
         std::cout << "Video oynatilamadi" << std::endl;
         exit(1);
+    }
+}
+
+void controlScreen(const Anime &anime,
+                   const long union_,
+                   const std::vector<SourceFile> &sources,
+                   const std::vector<Fansub> &fansubs,
+                   const Fansub &fansub,
+                   const SourceFile &source_file)
+{
+    int episode = (union_ >> (sizeof(int) * 8)) & 0xFFFFFFFF;
+    int season = union_ & 0xFFFFFFFF;
+
+    std::vector<std::string> controls;
+    int season_episode_count = !anime.isMovie() ? anime.seasons.at(season - 1).episode_count : 0;
+
+    if (!anime.isMovie() && (episode < season_episode_count || season < anime.number_of_seasons)) {
+        controls.push_back((episode == season_episode_count) ? "sonraki sezon" : "sonraki bölüm");
+    }
+
+    controls.push_back("bolumu tekrar oynat");
+
+    if (!anime.isMovie()) {
+        if (episode > 1 || season > 1) {
+            controls.push_back("onceki bolum");
+        }
+        controls.push_back("bolum sec");
+    }
+
+    if (sources.size() > 1) {
+        controls.push_back("cozunurluk degistir");
+    }
+
+    if (fansubs.size() > 1) {
+        controls.push_back("fansub degistir");
+    }
+
+    controls.push_back("cikis");
+
+    const std::string title =
+        anime.english + " - " +
+        (!anime.isMovie() ? "Sezon " + std::to_string(season) + " Bölüm " + std::to_string(episode)
+                          : "Film") +
+        " - " + std::to_string(source_file.resolution) + "p oynatılıyor";
+
+    while (true) {
+        int selected_index = selectPrompt(title, controls, parser.use_fzf, inquirer);
+        const std::string &selected = controls[selected_index];
+
+        // TODO: implement the logic for each control
+        if (selected == "cikis") {
+            exit(0);
+        } else {
+            std::cout << "Gecersiz secim" << std::endl;
+        }
     }
 }
 
@@ -191,7 +244,14 @@ int main(int argc, char *argv[])
     }
     std::cout << "[debug]: Highest resolution: " << highest_source_file.resolution << std::endl;
 
-    playVideo(highest_source_file, anime, season, episode);
+    // larei napiyon uglum :sobsob:
+    long union_ = 0;
+
+    union_ |= (long) episode << sizeof(int) * 8;
+    union_ |= (long) season;
+
+    playVideo(highest_source_file, anime, union_);
+    controlScreen(anime, union_, source.files, fansubs, selected_fansub, highest_source_file);
 
     return 0;
 }

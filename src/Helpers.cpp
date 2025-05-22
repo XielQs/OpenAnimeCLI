@@ -41,8 +41,7 @@ std::string randomString(int length)
     return result;
 }
 
-int selectPrompt(const std::string type,
-                 const std::string question,
+int selectPrompt(const std::string question,
                  const std::vector<std::string> &options,
                  bool use_fzf,
                  alx::Inquirer inquirer)
@@ -67,7 +66,7 @@ int selectPrompt(const std::string type,
         std::filesystem::remove(tmp_file);
     } else {
         system("clear");
-        selected = inquirer.add_question({type, question, options}).ask();
+        selected = inquirer.add_question({"select", question, options}).ask();
     }
 
     if (selected.empty()) {
