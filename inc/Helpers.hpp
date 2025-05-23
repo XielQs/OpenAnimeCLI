@@ -2,6 +2,7 @@
 #ifndef OPENANIMECLI_HELPERS_HPP
 #define OPENANIMECLI_HELPERS_HPP
 
+#include "Common.hpp"
 #include "lib/inquirer.hpp"
 #include <string>
 
@@ -13,5 +14,7 @@ int selectPrompt(const std::string question,
                  const std::vector<std::string> &options,
                  bool use_fzf,
                  alx::Inquirer inquirer);
+
+JSON safeParse(const std::string &text);
 
 #endif // OPENANIMECLI_HELPERS_HPP

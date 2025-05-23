@@ -29,13 +29,12 @@ AnimeSearch selectAnime(std::string anime_name = "")
         exit(1);
     }
 
-    std::vector<std::string> results_list;
+    std::vector<std::string> anime_list(results.size());
 
-    for (const auto &item : results) {
-        results_list.push_back(item.english + (item.isMovie() ? " (film)" : ""));
-    }
+    std::transform(results.begin(), results.end(), anime_list.begin(),
+                   [](auto &item) { return item.english + (item.isMovie() ? " (film)" : ""); });
 
-    int anime_index = selectPrompt("Bir anime secin", results_list, parser.use_fzf, inquirer);
+    int anime_index = selectPrompt("Bir anime secin", anime_list, parser.use_fzf, inquirer);
 
     return results[anime_index];
 }
@@ -57,11 +56,10 @@ Fansub selectFansub(const std::vector<Fansub> &fansubs, const std::string fansub
         if (fansubs.size() == 1) {
             selected_index = 0;
         } else {
-            std::vector<std::string> fansub_list;
+            std::vector<std::string> fansub_list(fansubs.size());
 
-            for (const auto &fansub : fansubs) {
-                fansub_list.push_back(fansub.name);
-            }
+            std::transform(fansubs.begin(), fansubs.end(), fansub_list.begin(),
+                           [](const Fansub &fansub) { return fansub.name; });
 
             selected_index =
                 selectPrompt("Bir fansub secin (" + std::to_string(fansubs.size()) + " adet)",
@@ -134,10 +132,8 @@ void playVideo(const SourceFile &source_file, const Anime &anime, const long uni
     int episode = (union_ >> (sizeof(int) * 8)) & 0xFFFFFFFF;
     int season = union_ & 0xFFFFFFFF;
 
-    if (source_file.file.empty()) {
-        std::cout << "Video oynatilamadi" << std::endl;
-        exit(1);
-    }
+    if (source_file.file.empty())
+        throw std::runtime_error("Source file is empty");
 
     std::string title = anime.english + " - ";
     if (anime.isMovie()) {
@@ -151,10 +147,8 @@ void playVideo(const SourceFile &source_file, const Anime &anime, const long uni
     std::string command = "mpv " + args + " > /dev/null 2>&1 &";
     // filesystem::remove(temp_path);
     // " >" + temp_path + " 2>&1 &"
-    if (system(command.c_str()) != 0) {
-        std::cout << "Video oynatilamadi" << std::endl;
-        exit(1);
-    }
+    if (system(command.c_str()) != 0)
+        throw std::runtime_error("Failed to play video: " + command);
 }
 
 void updateSource(const Anime &anime,
@@ -170,23 +164,14 @@ void updateSource(const Anime &anime,
     fansub = selectFansub(fansubs, fansub.id);
     sources = api.fetchSource(anime.slug, season, episode, fansub.id).files;
 
-    source_file.file.clear();
+    SourceFile *best = nullptr;
 
-    for (const auto &source : sources) {
-        if (source.resolution == source_file.resolution) {
-            source_file = source;
-            break;
-        }
+    for (auto &s : sources) {
+        if (!best || s.resolution > best->resolution || s.resolution == source_file.resolution)
+            best = &s;
     }
-
-    if (source_file.file.empty() && !sources.empty()) {
-        source_file = sources[0];
-        for (const auto &source : sources) {
-            if (source.resolution > source_file.resolution) {
-                source_file = source;
-            }
-        }
-    }
+    if (best)
+        source_file = *best;
 }
 
 void controlScreen(const Anime &anime,
@@ -260,7 +245,6 @@ void controlScreen(const Anime &anime,
             break;
         } else if (selected == "bolumu tekrar oynat") {
             playVideo(source_file, anime, union_);
-            break;
         } else if (selected == "onceki bolum") {
             if (episode == 1) {
                 updateAndPlay(--season, season_episode_count);
@@ -273,11 +257,11 @@ void controlScreen(const Anime &anime,
             updateAndPlay(season, episode);
             break;
         } else if (selected == "cozunurluk degistir") {
-            std::vector<std::string> resolution_list;
+            std::vector<std::string> resolution_list(sources.size());
 
-            for (const auto &source : sources) {
-                resolution_list.push_back(std::to_string(source.resolution) + "p");
-            }
+            std::transform(
+                sources.begin(), sources.end(), resolution_list.begin(),
+                [](const SourceFile &src) { return std::to_string(src.resolution) + "p"; });
 
             int resolution_index =
                 selectPrompt("Bir cozunurluk secin", resolution_list, parser.use_fzf, inquirer);

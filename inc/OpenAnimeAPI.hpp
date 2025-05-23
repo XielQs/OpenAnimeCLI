@@ -23,7 +23,8 @@ public:
                        const std::string &fansub_id = "");
 
 private:
-    std::string fetchCDNLink(const std::string &slug, int season, int episode);
+    std::string fetchCDNLink(const std::string &slug, int season, int episode) const;
+    void checkResponse(const cpr::Response &response) const;
 
     HttpClient client;
     inline static const std::string base_url = "https://api.openani.me";

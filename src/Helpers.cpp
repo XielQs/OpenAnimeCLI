@@ -1,3 +1,4 @@
+#include "Common.hpp"
 #include "lib/inquirer.hpp"
 #include <array>
 #include <cstdlib>
@@ -51,10 +52,8 @@ int selectPrompt(const std::string question,
     if (use_fzf) {
         std::string tmp_file = std::filesystem::temp_directory_path() / randomString(16);
         std::ofstream file(tmp_file);
-        if (!file) {
-            std::cerr << "Failed to create temporary file." << std::endl;
-            exit(1);
-        }
+        if (!file)
+            throw std::runtime_error("Failed to open temporary file");
 
         for (const auto &option : options) {
             file << option << "\n";
@@ -84,4 +83,13 @@ int selectPrompt(const std::string question,
     }
 
     return distance(options.begin(), selection);
+}
+
+JSON safeParse(const std::string &text)
+{
+    try {
+        return JSON::parse(text);
+    } catch (const JSON::parse_error &e) {
+        throw std::runtime_error("JSON parse error: " + std::string(e.what()));
+    }
 }
