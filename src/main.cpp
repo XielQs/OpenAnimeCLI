@@ -6,6 +6,7 @@
 #include "model/AnimeSearch.hpp"
 #include "model/Fansub.hpp"
 #include "model/Source.hpp"
+#include <algorithm>
 #include <cpr/cpr.h>
 #include <iostream>
 #include <string>
@@ -39,14 +40,34 @@ AnimeSearch selectAnime(std::string anime_name = "")
     return results[anime_index];
 }
 
-Fansub selectFansub(const std::vector<Fansub> &fansubs)
+Fansub selectFansub(const std::vector<Fansub> &fansubs, const std::string fansub_id = "")
 {
-    std::vector<std::string> fansub_list;
-    for (const auto &fansub : fansubs) {
-        fansub_list.push_back(fansub.name);
+    int selected_index = -1;
+
+    if (!fansub_id.empty()) {
+        for (size_t i = 0; i < fansubs.size(); ++i) {
+            if (fansubs[i].id == fansub_id) {
+                selected_index = static_cast<int>(i);
+                break;
+            }
+        }
     }
 
-    int selected_index = selectPrompt("Bir fansub secin", fansub_list, parser.use_fzf, inquirer);
+    if (selected_index == -1) {
+        if (fansubs.size() == 1) {
+            selected_index = 0;
+        } else {
+            std::vector<std::string> fansub_list;
+
+            for (const auto &fansub : fansubs) {
+                fansub_list.push_back(fansub.name);
+            }
+
+            selected_index =
+                selectPrompt("Bir fansub secin (" + std::to_string(fansubs.size()) + " adet)",
+                             fansub_list, parser.use_fzf, inquirer);
+        }
+    }
 
     return fansubs[selected_index];
 }
@@ -136,12 +157,44 @@ void playVideo(const SourceFile &source_file, const Anime &anime, const long uni
     }
 }
 
+void updateSource(const Anime &anime,
+                  const long union_,
+                  SourceFile &source_file,
+                  std::vector<SourceFile> &sources,
+                  Fansub &fansub,
+                  std::vector<Fansub> &fansubs)
+{
+    int episode = (union_ >> (sizeof(int) * 8)) & 0xFFFFFFFF;
+    int season = union_ & 0xFFFFFFFF;
+
+    fansub = selectFansub(fansubs, fansub.id);
+    sources = api.fetchSource(anime.slug, season, episode, fansub.id).files;
+
+    source_file.file.clear();
+
+    for (const auto &source : sources) {
+        if (source.resolution == source_file.resolution) {
+            source_file = source;
+            break;
+        }
+    }
+
+    if (source_file.file.empty() && !sources.empty()) {
+        source_file = sources[0];
+        for (const auto &source : sources) {
+            if (source.resolution > source_file.resolution) {
+                source_file = source;
+            }
+        }
+    }
+}
+
 void controlScreen(const Anime &anime,
                    const long union_,
-                   const std::vector<SourceFile> &sources,
-                   const std::vector<Fansub> &fansubs,
-                   const Fansub &fansub,
-                   const SourceFile &source_file)
+                   std::vector<SourceFile> &sources,
+                   std::vector<Fansub> &fansubs,
+                   Fansub &fansub,
+                   SourceFile &source_file)
 {
     int episode = (union_ >> (sizeof(int) * 8)) & 0xFFFFFFFF;
     int season = union_ & 0xFFFFFFFF;
@@ -150,7 +203,7 @@ void controlScreen(const Anime &anime,
     int season_episode_count = !anime.isMovie() ? anime.seasons.at(season - 1).episode_count : 0;
 
     if (!anime.isMovie() && (episode < season_episode_count || season < anime.number_of_seasons)) {
-        controls.push_back((episode == season_episode_count) ? "sonraki sezon" : "sonraki bölüm");
+        controls.push_back((episode == season_episode_count) ? "sonraki sezon" : "sonraki bolum");
     }
 
     controls.push_back("bolumu tekrar oynat");
@@ -174,16 +227,80 @@ void controlScreen(const Anime &anime,
 
     const std::string title =
         anime.english + " - " +
-        (!anime.isMovie() ? "Sezon " + std::to_string(season) + " Bölüm " + std::to_string(episode)
+        (!anime.isMovie() ? "Sezon " + std::to_string(season) + " bolum " + std::to_string(episode)
                           : "Film") +
-        " - " + std::to_string(source_file.resolution) + "p oynatılıyor";
+        " - " + std::to_string(source_file.resolution) + "p oynatiliyor";
+
+    auto updateAndPlay = [&](int new_season, int new_episode) {
+        long new_union = 0;
+
+        new_union |= (long) new_episode << sizeof(int) * 8;
+        new_union |= (long) new_season;
+
+        updateSource(anime, new_union, source_file, sources, fansub, fansubs);
+        playVideo(source_file, anime, new_union);
+        controlScreen(anime, new_union, sources, fansubs, fansub, source_file);
+    };
 
     while (true) {
         int selected_index = selectPrompt(title, controls, parser.use_fzf, inquirer);
         const std::string &selected = controls[selected_index];
 
-        // TODO: implement the logic for each control
-        if (selected == "cikis") {
+        if (selected == "sonraki bolum" || selected == "sonraki sezon") {
+            if (episode == season_episode_count) {
+                if (season < anime.number_of_seasons) {
+                    updateAndPlay(++season, 1);
+                } else {
+                    std::cout << "Bu sezonun son bolumu" << std::endl;
+                    exit(0);
+                }
+            } else {
+                updateAndPlay(season, ++episode);
+            }
+            break;
+        } else if (selected == "bolumu tekrar oynat") {
+            playVideo(source_file, anime, union_);
+            break;
+        } else if (selected == "onceki bolum") {
+            if (episode == 1) {
+                updateAndPlay(--season, season_episode_count);
+            } else {
+                updateAndPlay(season, --episode);
+            }
+            break;
+        } else if (selected == "bolum sec") {
+            selectEpisode(anime, season, episode);
+            updateAndPlay(season, episode);
+            break;
+        } else if (selected == "cozunurluk degistir") {
+            std::vector<std::string> resolution_list;
+
+            for (const auto &source : sources) {
+                resolution_list.push_back(std::to_string(source.resolution) + "p");
+            }
+
+            int resolution_index =
+                selectPrompt("Bir cozunurluk secin", resolution_list, parser.use_fzf, inquirer);
+            source_file = sources[resolution_index];
+
+            updateAndPlay(season, episode);
+            break;
+        } else if (selected == "fansub degistir") {
+            Fansub new_fansub = selectFansub(fansubs);
+
+            if (new_fansub.id != fansub.id) {
+                fansub = new_fansub;
+                sources = api.fetchSource(anime.slug, season, episode, fansub.id).files;
+
+                auto it = std::find_if(sources.begin(), sources.end(), [&](const SourceFile &src) {
+                    return src.resolution == source_file.resolution;
+                });
+
+                source_file = (it != sources.end()) ? *it : sources[0];
+                updateAndPlay(season, episode);
+                break;
+            }
+        } else if (selected == "cikis") {
             exit(0);
         } else {
             std::cout << "Gecersiz secim" << std::endl;
