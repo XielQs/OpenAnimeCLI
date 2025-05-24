@@ -38,7 +38,9 @@ AnimeSearch selectAnime(std::string anime_name = "")
     return results[anime_index];
 }
 
-Fansub selectFansub(const std::vector<Fansub> &fansubs, const std::string fansub_id = "")
+Fansub selectFansub(const std::vector<Fansub> &fansubs,
+                    const std::string fansub_id = "",
+                    const std::string &current_fansub = "")
 {
     int selected_index = -1;
 
@@ -58,7 +60,9 @@ Fansub selectFansub(const std::vector<Fansub> &fansubs, const std::string fansub
             std::vector<std::string> fansub_list(fansubs.size());
 
             std::transform(fansubs.begin(), fansubs.end(), fansub_list.begin(),
-                           [](const Fansub &fansub) { return fansub.name; });
+                           [&current_fansub](const Fansub &fansub) {
+                               return (fansub.id == current_fansub ? "* " : "") + fansub.name;
+                           });
 
             selected_index = selectPrompt(std::format("Bir fansub secin ({} adet)", fansubs.size()),
                                           fansub_list, parser.use_fzf, inquirer);
@@ -159,8 +163,10 @@ void updateSource(const Anime &anime,
     SourceFile *best = nullptr;
 
     for (auto &s : sources) {
-        if (!best || s.resolution > best->resolution || s.resolution == source_file.resolution)
+        if (!best || s.resolution == source_file.resolution || s.resolution > best->resolution)
             best = &s;
+        if (s.resolution == source_file.resolution)
+            break; // found the same resolution, no need to continue
     }
     if (best)
         source_file = *best;
@@ -200,13 +206,14 @@ void controlScreen(const Anime &anime,
 
     controls.push_back("cikis");
 
-    auto updateAndPlay = [&](int new_season, int new_episode) {
+    auto updateAndPlay = [&](int new_season, int new_episode, bool update_source = true) {
         long new_union = 0;
 
         new_union |= (long) new_episode << sizeof(int) * 8;
         new_union |= (long) new_season;
 
-        updateSource(anime, new_union, source_file, sources, fansub, fansubs);
+        if (update_source)
+            updateSource(anime, new_union, source_file, sources, fansub, fansubs);
         playVideo(source_file, anime, new_union);
         controlScreen(anime, new_union, sources, fansubs, fansub, source_file);
     };
@@ -244,34 +251,33 @@ void controlScreen(const Anime &anime,
             updateAndPlay(season, episode);
             break;
         } else if (selected == "cozunurluk degistir") {
+            std::sort(sources.begin(), sources.end(), [](const SourceFile &a, const SourceFile &b) {
+                return a.resolution > b.resolution;
+            });
+
             std::vector<std::string> resolution_list(sources.size());
 
-            std::transform(
-                sources.begin(), sources.end(), resolution_list.begin(),
-                [](const SourceFile &src) { return std::to_string(src.resolution) + "p"; });
+            std::transform(sources.begin(), sources.end(), resolution_list.begin(),
+                           [&source_file](const SourceFile &src) {
+                               return (src.resolution == source_file.resolution ? "* " : "") +
+                                      std::to_string(src.resolution) + "p";
+                           });
 
             int resolution_index =
                 selectPrompt("Bir cozunurluk secin", resolution_list, parser.use_fzf, inquirer);
             source_file = sources[resolution_index];
 
-            updateAndPlay(season, episode);
+            updateAndPlay(season, episode, false);
             break;
         } else if (selected == "fansub degistir") {
-            Fansub new_fansub = selectFansub(fansubs);
+            Fansub new_fansub = selectFansub(fansubs, "", fansub.id);
 
             if (new_fansub.id != fansub.id) {
                 fansub = new_fansub;
-                sources = api.fetchSource(anime.slug, anime.seasons[season].season_number, episode,
-                                          fansub.id)
-                              .files;
-
-                auto it = std::find_if(sources.begin(), sources.end(), [&](const SourceFile &src) {
-                    return src.resolution == source_file.resolution;
-                });
-
-                source_file = (it != sources.end()) ? *it : sources[0];
                 updateAndPlay(season, episode);
                 break;
+            } else {
+                playVideo(source_file, anime, union_);
             }
         } else if (selected == "cikis") {
             exit(0);
