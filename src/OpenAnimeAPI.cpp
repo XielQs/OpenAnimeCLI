@@ -83,7 +83,8 @@ Source OpenAnimeAPI::fetchSource(const std::string &slug,
                                  const std::string &fansub_id)
 {
     cpr::Response response =
-        client.get(std::format("/anime/{}/{}/{}", slug, season, episode), {{"fansub", fansub_id}});
+        client.get(std::format("/anime/{}/season/{}/episode/{}", slug, season, episode),
+                   {{"fansub_id", fansub_id}});
     checkResponse(response);
 
     std::string cdn_link = fetchCDNLink(slug, season, episode);
