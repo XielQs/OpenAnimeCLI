@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 
-ArgumentParser::ArgumentParser(int argc, char *argv[]) : use_fzf(false), argc(argc), argv(argv) {}
+ArgumentParser::ArgumentParser(int argc, char *argv[]) : use_fzf(true), argc(argc), argv(argv) {}
 
 void ArgumentParser::parse()
 {
@@ -21,24 +21,26 @@ void ArgumentParser::parse()
         } else if (arg == "--fzf") {
             use_fzf = true;
             hit_command = true;
+        } else if (arg == "--no-fzf") {
+            use_fzf = false;
+            hit_command = true;
         } else if (!hit_command && arg.compare(0, 2, "--") != 0) {
             anime_name += arg + " ";
             continue;
         } else {
-            std::cerr << "Unknown option: " << arg << std::endl;
+            std::cerr << "Bilinmeyen secenek: " << arg << std::endl;
             displayHelp();
             exit(1);
         }
     }
 
-    if (!anime_name.empty()) {
+    if (!anime_name.empty())
         anime_name = anime_name.substr(0, anime_name.size() - 1); // remove trailing space
-    }
 }
 
 void ArgumentParser::displayHelp() const
 {
-    std::cout << "Kullanim: openanime-cli [secenekler]" << std::endl;
+    std::cout << "Kullanim: openanime-cli [anime adi] [secenekler]" << std::endl;
     std::cout << "Secenekler:" << std::endl;
     std::cout << "  --help       Bu yardimi goster" << std::endl;
     std::cout << "  --version    Versiyon bilgisini goster" << std::endl;

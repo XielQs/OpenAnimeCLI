@@ -21,8 +21,6 @@ AnimeSearch selectAnime(std::string anime_name = "")
     if (anime_name == "")
         anime_name = inquirer.add_question({"anime_name", "Anime adi", alx::Type::text}).ask();
 
-    std::cout << "[debug]: Anime adi: " << anime_name << std::endl;
-
     std::vector<AnimeSearch> results = api.searchAnime(anime_name);
     if (results.empty()) {
         std::cout << "Anime bulunamadi" << std::endl;
@@ -296,24 +294,16 @@ int main(int argc, char *argv[])
 {
     parser = ArgumentParser(argc, argv);
     parser.parse();
-    if (parser.use_fzf) {
-        std::cout << "[debug]: Using fzf for selection" << std::endl;
-    }
 
     AnimeSearch selected_anime = selectAnime(parser.anime_name);
 
     Anime anime = api.fetchAnime(selected_anime.slug);
-
-    std::cout << "[debug]: Anime: " << anime.english << " (" << anime.episode_runtime << ")"
-              << std::endl;
 
     int season = 0, episode = 0;
 
     if (!anime.isMovie()) {
         selectEpisode(anime, season, episode);
     }
-
-    std::cout << "[debug]: Selected season: " << season << ", episode: " << episode << std::endl;
 
     Source source = api.fetchSource(anime.slug, season, episode);
 
@@ -324,17 +314,11 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    std::cout << "[debug]: Found " << fansubs.size() << " fansubs" << std::endl;
-
     Fansub selected_fansub = selectFansub(fansubs);
-
-    std::cout << "[debug]: Selected fansub: " << selected_fansub.name << std::endl;
 
     if (source.fansub.id != selected_fansub.id) {
         source = api.fetchSource(anime.slug, season, episode, selected_fansub.id);
     }
-
-    std::cout << "[debug]: Found " << source.files.size() << " files" << std::endl;
 
     SourceFile highest_source_file = source.files[0];
 
@@ -343,7 +327,6 @@ int main(int argc, char *argv[])
             highest_source_file = file;
         }
     }
-    std::cout << "[debug]: Highest resolution: " << highest_source_file.resolution << std::endl;
 
     // larei napiyon uglum :sobsob:
     long union_ = 0;
