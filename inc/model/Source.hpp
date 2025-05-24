@@ -44,7 +44,7 @@ public:
         }
         for (const auto &file_json : json["episodeData"]["files"]) {
             source.files.push_back(SourceFile::from_json(
-                file_json, cdn_link + slug + "/" + std::to_string(season) + "/"));
+                file_json, cdn_link + slug + "/" + std::to_string(season ? season : 1) + "/"));
         }
         source.fansub = Fansub::from_json(json["episodeData"]["fansub"]);
         source.skip_times =
