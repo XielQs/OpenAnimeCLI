@@ -8,6 +8,7 @@
 #include "model/Source.hpp"
 #include <algorithm>
 #include <cpr/cpr.h>
+#include <format>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -59,9 +60,8 @@ Fansub selectFansub(const std::vector<Fansub> &fansubs, const std::string fansub
             std::transform(fansubs.begin(), fansubs.end(), fansub_list.begin(),
                            [](const Fansub &fansub) { return fansub.name; });
 
-            selected_index =
-                selectPrompt("Bir fansub secin (" + std::to_string(fansubs.size()) + " adet)",
-                             fansub_list, parser.use_fzf, inquirer);
+            selected_index = selectPrompt(std::format("Bir fansub secin ({} adet)", fansubs.size()),
+                                          fansub_list, parser.use_fzf, inquirer);
         }
     }
 
@@ -77,10 +77,9 @@ void selectEpisode(const Anime &anime, int &season, int &episode)
             try {
                 std::string season_input =
                     inquirer
-                        .add_question(
-                            {"season",
-                             "Sezon (1-" + std::to_string(anime.number_of_seasons) + " arasi)",
-                             alx::Type::decimal})
+                        .add_question({"season",
+                                       std::format("Sezon (1-{} arasi)", anime.number_of_seasons),
+                                       alx::Type::decimal})
                         .ask();
                 season = stoi(season_input);
 
@@ -105,8 +104,7 @@ void selectEpisode(const Anime &anime, int &season, int &episode)
             try {
                 std::string episode_input =
                     inquirer
-                        .add_question({"episode",
-                                       "Bolum (1-" + std::to_string(episode_count) + " arasi)",
+                        .add_question({"episode", std::format("Bolum (1-{} arasi)", episode_count),
                                        alx::Type::decimal})
                         .ask();
                 episode = stoi(episode_input);
@@ -137,14 +135,13 @@ void playVideo(const SourceFile &source_file, const Anime &anime, const long uni
     if (anime.isMovie()) {
         title += "Film";
     } else {
-        title += "Sezon " + std::to_string(season) + " bolum " + std::to_string(episode);
+        title += std::format("Sezon {} Bolum {}", season, episode);
     }
-    title += " - " + std::to_string(source_file.resolution) + "p";
+    title += std::format(" - {}p", source_file.resolution);
 
-    std::string args = "--force-media-title='" + title + "' '" + source_file.file + "'";
+    std::string args = std::format("--force-media-title='{}' '{}'", title, source_file.file);
+
     std::string command = "mpv " + args + " > /dev/null 2>&1 &";
-    // filesystem::remove(temp_path);
-    // " >" + temp_path + " 2>&1 &"
     if (system(command.c_str()) != 0)
         throw std::runtime_error("Failed to play video: " + command);
 }
@@ -210,9 +207,8 @@ void controlScreen(const Anime &anime,
 
     const std::string title =
         anime.english + " - " +
-        (!anime.isMovie() ? "Sezon " + std::to_string(season) + " bolum " + std::to_string(episode)
-                          : "Film") +
-        " - " + std::to_string(source_file.resolution) + "p oynatiliyor";
+        (!anime.isMovie() ? std::format("Sezon {} Bolum {}", season, episode) : "Film") +
+        std::format(" - {}p oynatiliyor", source_file.resolution);
 
     auto updateAndPlay = [&](int new_season, int new_episode) {
         long new_union = 0;

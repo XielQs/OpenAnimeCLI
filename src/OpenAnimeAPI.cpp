@@ -3,6 +3,7 @@
 #include "model/Anime.hpp"
 #include "model/AnimeSearch.hpp"
 #include "model/Source.hpp"
+#include <format>
 #include <regex>
 #include <vector>
 
@@ -81,9 +82,8 @@ Source OpenAnimeAPI::fetchSource(const std::string &slug,
                                  int episode,
                                  const std::string &fansub_id)
 {
-    cpr::Response response = client.get("/anime/" + slug + "/season/" + std::to_string(season) +
-                                            "/episode/" + std::to_string(episode),
-                                        {{"fansub", fansub_id}});
+    cpr::Response response =
+        client.get(std::format("/anime/{}/{}/{}", slug, season, episode), {{"fansub", fansub_id}});
     checkResponse(response);
 
     std::string cdn_link = fetchCDNLink(slug, season, episode);
@@ -99,8 +99,8 @@ Source OpenAnimeAPI::fetchSource(const std::string &slug,
 
 std::string OpenAnimeAPI::fetchCDNLink(const std::string &slug, int season, int episode) const
 {
-    cpr::Response response = client.get("https://openani.me/anime/" + slug + "/" +
-                                        std::to_string(season) + "/" + std::to_string(episode));
+    cpr::Response response =
+        client.get(std::format("https://openani.me/anime/{}/{}/{}", slug, season, episode));
     checkResponse(response);
 
     try {
@@ -118,6 +118,9 @@ std::string OpenAnimeAPI::fetchCDNLink(const std::string &slug, int season, int 
 
 void OpenAnimeAPI::checkResponse(const cpr::Response &response) const
 {
-    if (response.status_code != 200)
-        throw std::runtime_error("HTTP error: " + response.status_line);
+    if (response.status_code != 200) {
+        std::string body = response.text.empty() ? "No response body" : response.text;
+        throw std::runtime_error(
+            std::format("Request failed with status code {}: {}", response.status_code, body));
+    }
 }
