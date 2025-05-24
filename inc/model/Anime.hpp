@@ -37,7 +37,7 @@ public:
               .summary = data.summary,
           }),
           episode_runtime(data.episode_runtime), number_of_episodes(data.number_of_episodes),
-          number_of_seasons(data.number_of_seasons), seasons(data.seasons)
+          number_of_seasons(data.seasons.size()), seasons(data.seasons)
     {
     }
 

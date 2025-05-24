@@ -9,6 +9,8 @@ class Season
 {
 public:
     std::string id;
+    std::string name;
+    bool has_episode;
     int episode_count;
     int season_number;
 
@@ -17,6 +19,8 @@ public:
         Season season;
 
         season.id = json["id"];
+        season.name = json["name"];
+        season.has_episode = json["hasEpisode"];
         season.episode_count = json["episode_count"];
         season.season_number = json["season_number"];
 

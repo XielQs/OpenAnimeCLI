@@ -75,18 +75,11 @@ void selectEpisode(const Anime &anime, int &season, int &episode)
     } else {
         while (true) {
             try {
-                std::string season_input =
-                    inquirer
-                        .add_question({"season",
-                                       std::format("Sezon (1-{} arasi)", anime.number_of_seasons),
-                                       alx::Type::decimal})
-                        .ask();
-                season = stoi(season_input);
+                std::vector<std::string> season_list(anime.number_of_seasons);
+                std::transform(anime.seasons.begin(), anime.seasons.end(), season_list.begin(),
+                               [](const Season &s) { return s.name; });
 
-                if (season < 1 || season > anime.number_of_seasons) {
-                    std::cout << "Gecersiz sezon numarasi" << std::endl;
-                    continue;
-                }
+                season = selectPrompt("Sezon", season_list, parser.use_fzf, inquirer);
                 break;
             } catch (const std::invalid_argument &e) {
                 std::cout << "Gecersiz sezon numarasi" << std::endl;
@@ -96,7 +89,7 @@ void selectEpisode(const Anime &anime, int &season, int &episode)
         }
     }
 
-    const int episode_count = anime.seasons.at(season - 1).episode_count;
+    const int episode_count = anime.seasons[season].episode_count;
     if (episode_count == 1) {
         episode = 1;
     } else {
@@ -195,13 +188,11 @@ void controlScreen(const Anime &anime,
         controls.push_back("bolum sec");
     }
 
-    if (sources.size() > 1) {
+    if (sources.size() > 1)
         controls.push_back("cozunurluk degistir");
-    }
 
-    if (fansubs.size() > 1) {
+    if (fansubs.size() > 1)
         controls.push_back("fansub degistir");
-    }
 
     controls.push_back("cikis");
 
@@ -297,9 +288,8 @@ int main(int argc, char *argv[])
 
     int season = 0, episode = 0;
 
-    if (!anime.isMovie()) {
+    if (!anime.isMovie())
         selectEpisode(anime, season, episode);
-    }
 
     Source source = api.fetchSource(anime.slug, season, episode);
 
