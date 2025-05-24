@@ -42,6 +42,14 @@ std::string randomString(int length)
     return result;
 }
 
+bool isCommand(const std::string &cmd)
+{
+    std::string command = "command -v " + cmd + " > /dev/null 2>&1";
+    return system(command.c_str()) == 0;
+}
+
+bool isFzfAvailable = isCommand("fzf");
+
 int selectPrompt(const std::string question,
                  const std::vector<std::string> &options,
                  bool use_fzf,
@@ -49,7 +57,7 @@ int selectPrompt(const std::string question,
 {
     std::string selected;
 
-    if (use_fzf) {
+    if (use_fzf && isFzfAvailable) {
         std::string tmp_file = std::filesystem::temp_directory_path() / randomString(16);
         std::ofstream file(tmp_file);
         if (!file)
