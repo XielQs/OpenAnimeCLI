@@ -101,3 +101,14 @@ JSON safeParse(const std::string &text)
         throw std::runtime_error("JSON parse error: " + std::string(e.what()));
     }
 }
+
+bool isJSON(const std::string &text)
+{
+    try {
+        // we are declaring a variable because JSON::parse has attr(__warn_unused_result__)
+        auto parsed = JSON::parse(text);
+        return true;
+    } catch (const JSON::parse_error &) {
+        return false;
+    }
+}

@@ -119,7 +119,10 @@ std::string OpenAnimeAPI::fetchCDNLink(const std::string &slug, int season, int 
 void OpenAnimeAPI::checkResponse(const cpr::Response &response) const
 {
     if (response.status_code != 200) {
-        std::string body = response.text.empty() ? "No response body" : response.text;
+        std::string body =
+            response.text.empty()
+                ? "No response body"
+                : (isJSON(response.text) ? JSON::parse(response.text).dump(4) : response.text);
         throw std::runtime_error(
             std::format("Request failed with status code {}: {}", response.status_code, body));
     }

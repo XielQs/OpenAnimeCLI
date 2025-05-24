@@ -19,4 +19,6 @@ int selectPrompt(const std::string question,
 
 JSON safeParse(const std::string &text);
 
+bool isJSON(const std::string &text);
+
 #endif // OPENANIMECLI_HELPERS_HPP
