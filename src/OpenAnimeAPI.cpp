@@ -4,6 +4,7 @@
 #include "model/AnimeSearch.hpp"
 #include "model/Source.hpp"
 #include <format>
+#include <iostream>
 #include <regex>
 #include <vector>
 
@@ -124,6 +125,21 @@ void OpenAnimeAPI::checkResponse(const cpr::Response &response) const
             response.text.empty()
                 ? "No response body"
                 : (isJSON(response.text) ? JSON::parse(response.text).dump(4) : response.text);
+
+        if (isJSON(response.text)) {
+            auto json_response = safeParse(response.text);
+            if (json_response.contains("error") && json_response["error"].is_string()) {
+                body = json_response["error"];
+            }
+        }
+
+        if (body == "Episode not found") {
+            std::cerr << "Sectiginiz bolum bulunamadi, bunun nedeni animenin daha yapim asamasinda "
+                         "olmasi olabilir"
+                      << std::endl;
+            exit(1);
+        }
+
         throw std::runtime_error(
             std::format("Request failed with status code {}: {}", response.status_code, body));
     }
