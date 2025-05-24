@@ -1,6 +1,6 @@
 # OpenAnimeCLI
 
-OpenAnimeCLI, OpenAnime icin bir komut satırı istemcisidir. Bu istemci, OpenAnime API'sini kullanarak Turkce anime izlemenizi saglar.
+OpenAnimeCLI, OpenAnime API'sini kullanarak istediginiz animeyi Turkce bir sekilde izlemenizi saglayan bir komut satiri aracidir.
 
 OpenAnimeCLI'in OpenAnime Labs. ile hicbir baglantisi yoktur. Bu proje tamamiyla topluluk destekli bir projedir.
 
@@ -21,11 +21,11 @@ cmake --build . -- -j$(nproc)
 
 Calistirilabilir dosya `build/` dizininde bulunmaktadir.
 
-## Kullanım
+## Kullanim
 
 ```bash
 > ./openanime-cli --help
-Kullanim: openanime-cli [secenekler]
+Kullanim: openanime-cli [anime_adi] [secenekler]
 Secenekler:
   --help       Bu yardimi goster
   --version    Versiyon bilgisini goster
@@ -34,4 +34,4 @@ Secenekler:
 
 ## Lisans
 
-Bu proje MIT lisansı altında lisanslanmıştır. Lisans metni için [LICENSE](LICENSE) dosyasına bakabilirsiniz.
+Bu proje MIT lisansi ile lisanslanmistir. Lisans bilgileri icin `LICENSE` dosyasina bakabilirsiniz.

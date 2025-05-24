@@ -40,7 +40,7 @@ void ArgumentParser::parse()
 
 void ArgumentParser::displayHelp() const
 {
-    std::cout << "Kullanim: openanime-cli [anime adi] [secenekler]" << std::endl;
+    std::cout << "Kullanim: openanime-cli [anime_adi] [secenekler]" << std::endl;
     std::cout << "Secenekler:" << std::endl;
     std::cout << "  --help       Bu yardimi goster" << std::endl;
     std::cout << "  --version    Versiyon bilgisini goster" << std::endl;
