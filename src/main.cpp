@@ -71,7 +71,7 @@ Fansub selectFansub(const std::vector<Fansub> &fansubs, const std::string fansub
 void selectEpisode(const Anime &anime, int &season, int &episode)
 {
     if (anime.number_of_seasons == 1) {
-        season = 1;
+        season = 0;
     } else {
         while (true) {
             try {
@@ -116,6 +116,16 @@ void selectEpisode(const Anime &anime, int &season, int &episode)
     }
 }
 
+std::string formatTitle(const Anime &anime, int season, int episode)
+{
+    std::string season_name = anime.seasons[season].name;
+    season_name =
+        season_name.replace(season_name.find("Season"), std::string("Season").size(), "Sezon");
+
+    return std::format("{}: {} - {}", anime.english, season_name,
+                       anime.isMovie() ? "Film" : std::format("Bolum {}", episode));
+}
+
 void playVideo(const SourceFile &source_file, const Anime &anime, const long union_)
 {
     int episode = (union_ >> (sizeof(int) * 8)) & 0xFFFFFFFF;
@@ -124,15 +134,8 @@ void playVideo(const SourceFile &source_file, const Anime &anime, const long uni
     if (source_file.file.empty())
         throw std::runtime_error("Source file is empty");
 
-    std::string title = anime.english + " - ";
-    if (anime.isMovie()) {
-        title += "Film";
-    } else {
-        title += std::format("Sezon {} Bolum {}", season, episode);
-    }
-    title += std::format(" - {}p", source_file.resolution);
-
-    std::string args = std::format("--force-media-title='{}' '{}'", title, source_file.file);
+    std::string args = std::format("--force-media-title='{}' '{}'",
+                                   formatTitle(anime, season, episode), source_file.file);
 
     std::string command = "mpv " + args + " > /dev/null 2>&1 &";
     if (system(command.c_str()) != 0)
@@ -150,7 +153,8 @@ void updateSource(const Anime &anime,
     int season = union_ & 0xFFFFFFFF;
 
     fansub = selectFansub(fansubs, fansub.id);
-    sources = api.fetchSource(anime.slug, season, episode, fansub.id).files;
+    sources =
+        api.fetchSource(anime.slug, anime.seasons[season].season_number, episode, fansub.id).files;
 
     SourceFile *best = nullptr;
 
@@ -173,7 +177,7 @@ void controlScreen(const Anime &anime,
     int season = union_ & 0xFFFFFFFF;
 
     std::vector<std::string> controls;
-    int season_episode_count = !anime.isMovie() ? anime.seasons.at(season - 1).episode_count : 0;
+    int season_episode_count = !anime.isMovie() ? anime.seasons[season].episode_count : 0;
 
     if (!anime.isMovie() && (episode < season_episode_count || season < anime.number_of_seasons)) {
         controls.push_back((episode == season_episode_count) ? "sonraki sezon" : "sonraki bolum");
@@ -196,11 +200,6 @@ void controlScreen(const Anime &anime,
 
     controls.push_back("cikis");
 
-    const std::string title =
-        anime.english + " - " +
-        (!anime.isMovie() ? std::format("Sezon {} Bolum {}", season, episode) : "Film") +
-        std::format(" - {}p oynatiliyor", source_file.resolution);
-
     auto updateAndPlay = [&](int new_season, int new_episode) {
         long new_union = 0;
 
@@ -213,7 +212,10 @@ void controlScreen(const Anime &anime,
     };
 
     while (true) {
-        int selected_index = selectPrompt(title, controls, parser.use_fzf, inquirer);
+        int selected_index =
+            selectPrompt(std::format("{} - {}p oynatiliyor", formatTitle(anime, season, episode),
+                                     source_file.resolution),
+                         controls, parser.use_fzf, inquirer);
         const std::string &selected = controls[selected_index];
 
         if (selected == "sonraki bolum" || selected == "sonraki sezon") {
@@ -259,7 +261,9 @@ void controlScreen(const Anime &anime,
 
             if (new_fansub.id != fansub.id) {
                 fansub = new_fansub;
-                sources = api.fetchSource(anime.slug, season, episode, fansub.id).files;
+                sources = api.fetchSource(anime.slug, anime.seasons[season].season_number, episode,
+                                          fansub.id)
+                              .files;
 
                 auto it = std::find_if(sources.begin(), sources.end(), [&](const SourceFile &src) {
                     return src.resolution == source_file.resolution;
@@ -291,7 +295,7 @@ int main(int argc, char *argv[])
     if (!anime.isMovie())
         selectEpisode(anime, season, episode);
 
-    Source source = api.fetchSource(anime.slug, season, episode);
+    Source source = api.fetchSource(anime.slug, anime.seasons[season].season_number, episode);
 
     std::vector<Fansub> fansubs = source.fansubs;
 
@@ -303,7 +307,8 @@ int main(int argc, char *argv[])
     Fansub selected_fansub = selectFansub(fansubs);
 
     if (source.fansub.id != selected_fansub.id) {
-        source = api.fetchSource(anime.slug, season, episode, selected_fansub.id);
+        source = api.fetchSource(anime.slug, anime.seasons[season].season_number, episode,
+                                 selected_fansub.id);
     }
 
     SourceFile highest_source_file = source.files[0];

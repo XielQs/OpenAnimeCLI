@@ -68,7 +68,7 @@ int selectPrompt(const std::string question,
         }
 
         file.close();
-        std::string command = "fzf --reverse --cycle --prompt='" + question + "' < " + tmp_file;
+        std::string command = "fzf --reverse --cycle --prompt='" + question + " ' < " + tmp_file;
         selected = execute(command);
         std::filesystem::remove(tmp_file);
     } else {
